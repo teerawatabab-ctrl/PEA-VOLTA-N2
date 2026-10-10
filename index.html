@@ -330,7 +330,7 @@
 
                 if (cleanData.length > 0) {
                     allStationData = cleanData;
-                    allRepairData = repairRows;
+                    allRepairData = fillRepairStationNames(repairRows);
                     populateOfficeFilter(cleanData);
                     document.getElementById('dashboardContent').style.display = 'block';
                     processDashboardData(allStationData, allRepairData);
@@ -519,6 +519,19 @@
             return String(
                 item[defaultKey] || item['ชื่อสถานีชาร์จ'] || item['ชื่อสถานี'] || item['Station'] || ''
             ).trim();
+        }
+
+        function fillRepairStationNames(repairRows) {
+            let previousStationName = '';
+            return repairRows.map(item => {
+                const stationName = getRepairStationName(item, 'Volta Name');
+                if (stationName) {
+                    previousStationName = stationName;
+                    return item;
+                }
+                if (!previousStationName) return item;
+                return { ...item, 'Volta Name': previousStationName };
+            });
         }
 
         function parseMoney(value) {
