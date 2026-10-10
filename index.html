@@ -11,11 +11,21 @@
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             margin: 0;
             padding: 28px;
-            background-color: #f3f4f6;
+            background: linear-gradient(145deg, #f5f8fb 0%, #e9f1f6 100%) fixed;
             color: #1f2937;
         }
         .header {
+            display: flex;
+            align-items: center;
+            gap: 18px;
             margin-bottom: 28px;
+        }
+        .pea-logo {
+            display: block;
+            width: 82px;
+            height: 58px;
+            flex: 0 0 auto;
+            object-fit: contain;
         }
         .header h2 {
             margin: 0;
@@ -129,7 +139,8 @@
         .badge.broken { background-color: #fee2e2; color: #991b1b; }
         @media (max-width: 700px) {
             body { padding: 16px; }
-            .header { margin-bottom: 20px; }
+            .header { gap: 12px; margin-bottom: 20px; }
+            .pea-logo { width: 62px; height: 46px; }
             .header h2 { font-size: 21px; }
             .kpi-container {
                 grid-template-columns: 1fr;
@@ -169,6 +180,7 @@
 <body>
 
     <div class="header">
+        <img class="pea-logo" src="https://www.pea.co.th/sites/default/files/PEA-Logo.png" alt="ตราการไฟฟ้าส่วนภูมิภาค PEA">
         <h2>📊 ระบบแดชบอร์ดสรุปภาพรวมตู้ชาร์จและสถานะชำรุด (PEA VOLTA)</h2>
     </div>
     
