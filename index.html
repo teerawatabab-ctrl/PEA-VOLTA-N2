@@ -48,6 +48,7 @@
         }
         .kpi-card.cost { border-left-color: #10b981; }
         .kpi-card.repair { border-left-color: #ef4444; }
+        .kpi-card.maintenance { border-left-color: #d97706; }
         
         .kpi-card h3 {
             margin: 0 0 10px 0;
@@ -216,6 +217,10 @@
                 <h3>ตู้ชาร์จที่อยู่ในสถานะเสีย</h3>
                 <div id="totalRepairs" class="value">0 ตู้</div>
             </div>
+            <div class="kpi-card maintenance">
+                <h3>ค่าใช้จ่ายซ่อมรวม</h3>
+                <div id="totalRepairCost" class="value">รอข้อมูล</div>
+            </div>
         </div>
 
         <!-- ส่วนที่ 2: กราฟและตาราง -->
@@ -255,6 +260,24 @@
                 </table>
             </div>
         </div>
+
+            <div class="table-box">
+                <h3>ประวัติการซ่อมแซม</h3>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>ลำดับ</th>
+                            <th>ชื่อสถานีชาร์จ</th>
+                            <th>กฟฟ.</th>
+                            <th>รายการ</th>
+                            <th>ราคา</th>
+                        </tr>
+                    </thead>
+                    <tbody id="repairHistoryBody">
+                        <tr><td colspan="5" style="text-align:center; color:#666;">กำลังโหลดประวัติการซ่อม</td></tr>
+                    </tbody>
+                </table>
+            </div>
     </div>
 
     <script>
@@ -404,6 +427,58 @@
             } else {
                 tableBody.innerHTML = `<tr><td colspan="11" style="text-align:center; color:#666;">ไม่พบข้อมูลสถานีใน กฟฟ. ที่เลือก</td></tr>`;
             }
+
+            renderRepairHistory(data, stationKey);
+        }
+
+        function renderRepairHistory(data, stationKey) {
+            const repairItemKey = 'รายการ';
+            const repairPriceKey = 'ราคา';
+            const historyBody = document.getElementById('repairHistoryBody');
+            const hasRepairFields = data.some(item => repairItemKey in item || repairPriceKey in item);
+            const repairRecords = data.filter(item =>
+                String(item[repairItemKey] ?? '').trim() !== '' ||
+                String(item[repairPriceKey] ?? '').trim() !== ''
+            );
+            const totalRepairCost = repairRecords.reduce((total, item) =>
+                total + parseMoney(item[repairPriceKey]), 0
+            );
+
+            document.getElementById('totalRepairCost').textContent = hasRepairFields
+                ? `${totalRepairCost.toLocaleString('th-TH')} บาท`
+                : 'รอข้อมูล';
+            historyBody.replaceChildren();
+
+            if (!hasRepairFields) {
+                historyBody.innerHTML = '<tr><td colspan="5" style="text-align:center; color:#666;">API ยังไม่ส่งคอลัมน์ รายการ และ ราคา</td></tr>';
+                return;
+            }
+            if (repairRecords.length === 0) {
+                historyBody.innerHTML = '<tr><td colspan="5" style="text-align:center; color:#666;">ไม่พบรายการซ่อมใน กฟฟ. ที่เลือก</td></tr>';
+                return;
+            }
+
+            repairRecords.forEach((item, index) => {
+                const row = document.createElement('tr');
+                [
+                    index + 1,
+                    item[stationKey] || '-',
+                    item['กฟฟ.'] || '-',
+                    item[repairItemKey] || '-',
+                    `${parseMoney(item[repairPriceKey]).toLocaleString('th-TH')} บาท`
+                ].forEach(value => {
+                    const cell = document.createElement('td');
+                    cell.textContent = String(value);
+                    row.appendChild(cell);
+                });
+                historyBody.appendChild(row);
+            });
+        }
+
+        function parseMoney(value) {
+            const normalized = String(value ?? '').replace(/,/g, '').replace(/[^0-9.-]/g, '');
+            const amount = Number(normalized);
+            return Number.isFinite(amount) ? amount : 0;
         }
 
         function parseCoordinate(value, minimum, maximum) {
