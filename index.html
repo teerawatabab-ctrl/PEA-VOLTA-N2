@@ -488,11 +488,13 @@
             }
 
             const stationSequence = new Map();
+            const shownStations = new Set();
             let nextSequence = 1;
             repairRecords.forEach((item, index) => {
                 const row = document.createElement('tr');
                 const stationName = getRepairStationName(item, stationKey);
                 const sequenceKey = stationName || `__repair_${index}`;
+                const showStationInfo = !stationName || !shownStations.has(stationName);
                 if (!stationSequence.has(sequenceKey)) {
                     stationSequence.set(sequenceKey, nextSequence++);
                 }
@@ -500,9 +502,9 @@
                     String(entry[stationKey] ?? '').trim() === stationName
                 );
                 [
-                    stationSequence.get(sequenceKey),
-                    stationName || '-',
-                    item['กฟฟ.'] || station?.['กฟฟ.'] || '-',
+                    showStationInfo ? stationSequence.get(sequenceKey) : '',
+                    showStationInfo ? stationName || '-' : '',
+                    showStationInfo ? item['กฟฟ.'] || station?.['กฟฟ.'] || '-' : '',
                     item['วันที่ดำเนินการ'] || '-',
                     item[repairItemKey] || '-',
                     `${parseMoney(item[repairPriceKey]).toLocaleString('th-TH')} บาท`
@@ -511,6 +513,7 @@
                     cell.textContent = String(value);
                     row.appendChild(cell);
                 });
+                if (stationName) shownStations.add(stationName);
                 historyBody.appendChild(row);
             });
         }
