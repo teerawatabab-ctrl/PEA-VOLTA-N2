@@ -19,6 +19,10 @@
             align-items: center;
             gap: 18px;
             margin-bottom: 28px;
+            background: linear-gradient(110deg, #e7f3ef 0%, #f2f7f8 100%);
+            border-bottom: 2px solid #d7e8e3;
+            border-left: 5px solid #713a91;
+            border-radius: 8px;
         }
         .pea-logo {
             display: block;
@@ -30,7 +34,7 @@
         .header h2 {
             margin: 0;
             font-size: 28px;
-            color: #111827;
+            color: #174c43;
         }
         /* Layout การ์ดสรุปภาพรวม (KPI Cards) */
         .kpi-container {
@@ -108,6 +112,7 @@
             grid-column: span 1;
             overflow-x: auto;
         }
+        .table-box h3 { color: #174c43; }
         @media (min-width: 1024px) {
             .table-box { grid-column: span 2; }
         }
@@ -125,11 +130,13 @@
             font-size: 15px;
         }
         th {
-            background-color: #f9fafb;
-            color: #374151;
+            background-color: #176b5b;
+            color: #ffffff;
             font-weight: 600;
+            border-bottom-color: #0f5549;
         }
-        tr:hover { background-color: #f9fafb; }
+        tbody tr:nth-child(even) { background-color: #f2f7f5; }
+        tbody tr:hover { background-color: #e2f0eb; }
         .badge {
             padding: 4px 8px;
             border-radius: 6px;
@@ -139,13 +146,13 @@
         .badge.active { background-color: #d1fae5; color: #065f46; }
         .badge.broken { background-color: #fee2e2; color: #991b1b; }
         .map-coordinate {
-            color: #075985;
+            color: #146b5b;
             font-weight: 600;
             text-decoration: underline;
             text-decoration-style: dotted;
             text-underline-offset: 3px;
         }
-        .map-coordinate:hover { color: #0c4a6e; }
+        .map-coordinate:hover { color: #0f5145; }
         @media (max-width: 700px) {
             body { padding: 16px; }
             .header { gap: 12px; margin-bottom: 20px; }
@@ -590,7 +597,7 @@
                 type: 'bar',
                 data: {
                     labels,
-                    datasets: [{ label: 'มูลค่าสินทรัพย์ (บาท)', data: values, backgroundColor: '#2563eb' }]
+                    datasets: [{ label: 'มูลค่าสินทรัพย์ (บาท)', data: values, backgroundColor: '#16806d' }]
                 },
                 options: {
                     responsive: true,
