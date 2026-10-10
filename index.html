@@ -137,6 +137,14 @@
         }
         .badge.active { background-color: #d1fae5; color: #065f46; }
         .badge.broken { background-color: #fee2e2; color: #991b1b; }
+        .map-coordinate {
+            color: #075985;
+            font-weight: 600;
+            text-decoration: underline;
+            text-decoration-style: dotted;
+            text-underline-offset: 3px;
+        }
+        .map-coordinate:hover { color: #0c4a6e; }
         @media (max-width: 700px) {
             body { padding: 16px; }
             .header { gap: 12px; margin-bottom: 20px; }
@@ -231,6 +239,8 @@
                             <th>ลำดับ</th>
                             <th>ชื่อสถานีชาร์จ (Volta Name)</th>
                             <th>กฟฟ.</th>
+                            <th>ละติจูด</th>
+                            <th>ลองติจูด</th>
                             <th>แบรนด์หัวชาร์จ</th>
                             <th>ขนาด (kW)</th>
                             <th>อาการ / รายการชำรุด</th>
@@ -306,6 +316,8 @@
             const sizeKey = 'ขนาด (kW)';
             const remarkKey = 'Remark';
             const pmKey = 'PM';
+            const latitudeKey = 'ละติจูด';
+            const longitudeKey = 'ลองติจูด';
 
             // --- 1. คำนวณค่าสำหรับการ์ด KPI ---
             document.getElementById('totalStations').innerText = data.length + " ตู้";
@@ -355,6 +367,8 @@
                         <td></td>
                         <td></td>
                         <td></td>
+                        <td></td>
+                        <td></td>
                         <td style="color:#dc2626;"></td>
                         <td><span class="${statusClass}"></span></td>
                         <td></td>
@@ -362,17 +376,43 @@
                     `;
                     tr.cells[1].querySelector('strong').textContent = String(item[stationKey] ?? '-');
                     tr.cells[2].textContent = String(item['กฟฟ.'] ?? '-');
-                    tr.cells[3].textContent = String(item[brandKey] ?? '-');
-                    tr.cells[4].textContent = String(item[sizeKey] || '-');
-                    tr.cells[5].textContent = String(item[typeKey] || '-');
-                    tr.cells[6].querySelector('span').textContent = String(item[statusKey] ?? '-');
-                    tr.cells[7].textContent = String(item[remarkKey] || '-');
-                    tr.cells[8].textContent = String(item[pmKey] || '-');
+                    const latitude = parseCoordinate(item[latitudeKey], -90, 90);
+                    const longitude = parseCoordinate(item[longitudeKey], -180, 180);
+                    if (latitude !== null && longitude !== null) {
+                        const mapUrl = `https://www.google.com/maps/search/?api=1&query=${latitude},${longitude}`;
+                        [latitude, longitude].forEach((coordinate, index) => {
+                            const link = document.createElement('a');
+                            link.className = 'map-coordinate';
+                            link.href = mapUrl;
+                            link.target = '_blank';
+                            link.rel = 'noopener noreferrer';
+                            link.textContent = coordinate.toFixed(6);
+                            tr.cells[index + 3].appendChild(link);
+                        });
+                    } else {
+                        tr.cells[3].textContent = '-';
+                        tr.cells[4].textContent = '-';
+                    }
+                    tr.cells[5].textContent = String(item[brandKey] ?? '-');
+                    tr.cells[6].textContent = String(item[sizeKey] || '-');
+                    tr.cells[7].textContent = String(item[typeKey] || '-');
+                    tr.cells[8].querySelector('span').textContent = String(item[statusKey] ?? '-');
+                    tr.cells[9].textContent = String(item[remarkKey] || '-');
+                    tr.cells[10].textContent = String(item[pmKey] || '-');
                     tableBody.appendChild(tr);
                 });
             } else {
-                tableBody.innerHTML = `<tr><td colspan="9" style="text-align:center; color:#666;">ไม่พบข้อมูลสถานีใน กฟฟ. ที่เลือก</td></tr>`;
+                tableBody.innerHTML = `<tr><td colspan="11" style="text-align:center; color:#666;">ไม่พบข้อมูลสถานีใน กฟฟ. ที่เลือก</td></tr>`;
             }
+        }
+
+        function parseCoordinate(value, minimum, maximum) {
+            const text = String(value ?? '').trim();
+            if (!text) return null;
+            const coordinate = Number(text.replace(',', '.'));
+            return Number.isFinite(coordinate) && coordinate >= minimum && coordinate <= maximum
+                ? coordinate
+                : null;
         }
 
         function populateOfficeFilter(data) {
