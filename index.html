@@ -1,0 +1,484 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Charging Station Assets & Maintenance Dashboard</title>
+    <!-- นำเข้าไลบรารี Chart.js เวอร์ชันสมบูรณ์สำหรับวาดกราฟ -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 28px;
+            background-color: #f3f4f6;
+            color: #1f2937;
+        }
+        .header {
+            margin-bottom: 28px;
+        }
+        .header h2 {
+            margin: 0;
+            font-size: 28px;
+            color: #111827;
+        }
+        /* Layout การ์ดสรุปภาพรวม (KPI Cards) */
+        .kpi-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            gap: 18px;
+            margin-bottom: 28px;
+        }
+        .kpi-card {
+            background: white;
+            padding: 24px;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            border-left: 5px solid #2563eb;
+        }
+        .kpi-card.cost { border-left-color: #10b981; }
+        .kpi-card.repair { border-left-color: #ef4444; }
+        
+        .kpi-card h3 {
+            margin: 0 0 10px 0;
+            font-size: 16px;
+            color: #4b5563;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .kpi-card .value {
+            font-size: 30px;
+            font-weight: bold;
+            color: #111827;
+        }
+        /* Layout กราฟและตารางประวัติ */
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 20px;
+        }
+        @media (min-width: 1024px) {
+            .dashboard-grid { grid-template-columns: 1fr 1fr; }
+        }
+        .chart-box, .table-box {
+            background: white;
+            padding: 24px;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+        .chart-box {
+            min-height: 380px;
+        }
+        .chart-box canvas {
+            display: block;
+            width: 100% !important;
+            height: 330px !important;
+        }
+        .filter-bar {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        .filter-bar label {
+            font-weight: 600;
+        }
+        .filter-bar select {
+            min-width: 220px;
+            max-width: 100%;
+            padding: 9px 12px;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            background: white;
+            color: #1f2937;
+            font: inherit;
+        }
+        .table-box {
+            grid-column: span 1;
+            overflow-x: auto;
+        }
+        @media (min-width: 1024px) {
+            .table-box { grid-column: span 2; }
+        }
+        /* สไตล์ตารางประวัติการซ่อม */
+        table {
+            width: 100%;
+            min-width: 1100px;
+            border-collapse: collapse;
+            margin-top: 15px;
+        }
+        th, td {
+            padding: 13px;
+            text-align: left;
+            border-bottom: 1px solid #e5e7eb;
+            font-size: 15px;
+        }
+        th {
+            background-color: #f9fafb;
+            color: #374151;
+            font-weight: 600;
+        }
+        tr:hover { background-color: #f9fafb; }
+        .badge {
+            padding: 4px 8px;
+            border-radius: 6px;
+            font-size: 13px;
+            font-weight: bold;
+        }
+        .badge.active { background-color: #d1fae5; color: #065f46; }
+        .badge.broken { background-color: #fee2e2; color: #991b1b; }
+        @media (max-width: 700px) {
+            body { padding: 16px; }
+            .header { margin-bottom: 20px; }
+            .header h2 { font-size: 21px; }
+            .kpi-container {
+                grid-template-columns: 1fr;
+                gap: 12px;
+                margin-bottom: 20px;
+            }
+            .kpi-card { padding: 17px; }
+            .kpi-card h3 { font-size: 15px; }
+            .kpi-card .value { font-size: 28px; }
+            .dashboard-grid { gap: 16px; }
+            .chart-box, .table-box { padding: 16px; }
+            .chart-box { min-height: 320px; }
+            .chart-box canvas { height: 270px !important; }
+            .filter-bar {
+                align-items: stretch;
+                flex-direction: column;
+                gap: 6px;
+            }
+            .filter-bar select {
+                width: 100%;
+                min-width: 0;
+            }
+            th, td { padding: 10px; font-size: 14px; }
+        }
+        @media (min-width: 1440px) {
+            body { padding: 32px 40px; }
+            .chart-box canvas { height: 360px !important; }
+        }
+        .loading {
+            text-align: center;
+            font-size: 18px;
+            margin-top: 100px;
+            color: #4b5563;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="header">
+        <h2>📊 ระบบแดชบอร์ดสรุปภาพรวมตู้ชาร์จและสถานะชำรุด (PEA VOLTA)</h2>
+    </div>
+    
+    <div id="loading" class="loading">กำลังดึงข้อมูลและประมวลผลระบบแดชบอร์ด...</div>
+
+    <div id="dashboardContent" style="display: none;">
+        <div class="filter-bar">
+            <label for="officeFilter">เลือก กฟฟ.</label>
+            <select id="officeFilter">
+                <option value="__all__">ทุก กฟฟ.</option>
+            </select>
+        </div>
+
+        <!-- ส่วนที่ 1: การ์ดสรุปภาพรวม (KPI) -->
+        <div class="kpi-container">
+            <div class="kpi-card">
+                <h3>จำนวนตู้ชาร์จทั้งหมด</h3>
+                <div id="totalStations" class="value">0 ตู้</div>
+            </div>
+            <div class="kpi-card cost">
+                <h3>มูลค่าสินทรัพย์รวมทั้งหมด</h3>
+                <div id="totalCost" class="value">0 บาท</div>
+            </div>
+            <div class="kpi-card repair">
+                <h3>ตู้ชาร์จที่อยู่ในสถานะเสีย</h3>
+                <div id="totalRepairs" class="value">0 ตู้</div>
+            </div>
+        </div>
+
+        <!-- ส่วนที่ 2: กราฟและตาราง -->
+        <div class="dashboard-grid">
+            <!-- กราฟแท่งมูลค่าตู้ชาร์จแยกตามแบรนด์ -->
+            <div class="chart-box">
+                <canvas id="costChart"></canvas>
+            </div>
+            
+            <!-- กราฟวงกลมสรุปสถานะการใช้งานตู้ชาร์จ -->
+            <div class="chart-box">
+                <canvas id="repairTypeChart"></canvas>
+            </div>
+
+            <!-- ตารางสถานะและแผน PM ของตู้ชาร์จ -->
+            <div class="table-box">
+                <h3>สถานะการทำงานและแผน PM ของตู้ชาร์จ</h3>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>ลำดับ</th>
+                            <th>ชื่อสถานีชาร์จ (Volta Name)</th>
+                            <th>กฟฟ.</th>
+                            <th>แบรนด์หัวชาร์จ</th>
+                            <th>ขนาด (kW)</th>
+                            <th>อาการ / รายการชำรุด</th>
+                            <th>สถานะการทำงาน</th>
+                            <th>Remark</th>
+                            <th>PM</th>
+                        </tr>
+                    </thead>
+                    <tbody id="repairTableBody">
+                        <!-- ข้อมูลจะถูกเขียนลงตรงนี้อัตโนมัติ -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const apiUrl = 'https://script.google.com/macros/s/AKfycbz5lKYv5xjHxqlx89yKDjkuztBHQ6tv_zNd06Ji1vIknJCoLxr1Se3Lb9I19Iq0tXAh/exec';
+        let allStationData = [];
+        let costChart;
+        let statusChart;
+
+        async function loadDashboard() {
+            const loading = document.getElementById('loading');
+            if (!apiUrl || apiUrl.includes('YOUR_')) {
+                loading.innerText = 'กรุณาตั้งค่า URL ของ Google Apps Script API ในตัวแปร apiUrl';
+                return;
+            }
+
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 12000);
+            try {
+                const response = await fetch(apiUrl, { signal: controller.signal });
+                if (!response.ok) {
+                    throw new Error(`API ตอบกลับสถานะ ${response.status}`);
+                }
+                const data = await response.json();
+                if (!Array.isArray(data)) {
+                    throw new Error('รูปแบบข้อมูล API ไม่ถูกต้อง');
+                }
+
+                // คัดกรองกรณีกดบันทึกแถวเปล่าติดมาด้านท้ายตารางชีต
+                const cleanData = data.filter(item => item['Volta Name'] && String(item['Volta Name']).trim() !== '');
+
+                if (cleanData.length > 0) {
+                    allStationData = cleanData;
+                    populateOfficeFilter(cleanData);
+                    document.getElementById('dashboardContent').style.display = 'block';
+                    processDashboardData(allStationData);
+                    document.getElementById('loading').style.display = 'none';
+                } else {
+                    document.getElementById('loading').innerText = 'ไม่พบข้อมูลในระบบฐานข้อมูล';
+                }
+            } catch (error) {
+                console.error("Error initializing dashboard:", error);
+                document.getElementById('dashboardContent').style.display = 'none';
+                loading.style.display = 'block';
+                loading.innerText = error.name === 'AbortError'
+                    ? 'API ใช้เวลาตอบกลับเกิน 12 วินาที กรุณาตรวจสอบ URL หรือการเชื่อมต่อ'
+                    : 'เกิดข้อผิดพลาดในการเชื่อมต่อหรือประมวลผล API';
+            } finally {
+                clearTimeout(timeoutId);
+            }
+        }
+
+        function processDashboardData(data) {
+            // ตั้งค่าคีย์ให้ตรงตามข้อความแถวที่ 1 ของ Google Sheet 
+            const stationKey = 'Volta Name';   
+            const costKey = 'มูลค่าการได้มา';      
+            const typeKey = 'รายการชำรุด'; 
+            const statusKey = 'Status';
+            const brandKey = 'Brand';      
+            const sizeKey = 'ขนาด (kW)';
+            const remarkKey = 'Remark';
+            const pmKey = 'PM';
+
+            // --- 1. คำนวณค่าสำหรับการ์ด KPI ---
+            document.getElementById('totalStations').innerText = data.length + " ตู้";
+
+            // สกัดค่าตัวเลขและคำนวณมูลค่าสินทรัพย์รวม (ป้องกันกรณีค่าเป็น 'na' หรือข้อความอื่น)
+            const totalCost = data.reduce((sum, item) => {
+                const cleanPrice = String(item[costKey]).replace(/[^0-9.]/g, ''); 
+                return sum + (Number(cleanPrice) || 0);
+            }, 0);
+            document.getElementById('totalCost').innerText = totalCost.toLocaleString() + " บาท";
+
+            // กรองจำนวนตู้ที่ขึ้นสเตตัสว่า "เสีย"
+            const brokenStations = data.filter(item => String(item[statusKey]).trim() === 'เสีย');
+            document.getElementById('totalRepairs').innerText = brokenStations.length + " ตู้";
+
+            // --- 2. ข้อมูลกราฟแท่ง: สรุปมูลค่าตู้แยกตามแบรนด์ (ABB / KMITL / ZEROVA) ---
+            const brandCosts = {};
+            data.forEach(item => {
+                const brand = item[brandKey] || 'ไม่ระบุแบรนด์';
+                const cleanPrice = String(item[costKey]).replace(/[^0-9.]/g, '');
+                const cost = Number(cleanPrice) || 0;
+                brandCosts[brand] = (brandCosts[brand] || 0) + cost;
+            });
+            
+            renderBarChart(Object.keys(brandCosts), Object.values(brandCosts));
+
+            // --- 3. ข้อมูลกราฟวงกลม: สัดส่วนสถานะตู้ (ใช้งานได้ปกติ vs เสีย) ---
+            const statusCounts = {};
+            data.forEach(item => {
+                const status = item[statusKey] || 'ไม่ระบุสถานะ';
+                statusCounts[status] = (statusCounts[status] || 0) + 1;
+            });
+
+            renderPieChart(Object.keys(statusCounts), Object.values(statusCounts));
+
+            // --- 4. แสดงสถานะและแผน PM ของทุกสถานี ---
+            const tableBody = document.getElementById('repairTableBody');
+            tableBody.innerHTML = ""; 
+
+            if (data.length > 0) {
+                data.forEach((item, index) => {
+                    const tr = document.createElement('tr');
+                    const statusClass = String(item[statusKey]).trim() === 'เสีย' ? 'badge broken' : 'badge active';
+                    tr.innerHTML = `
+                        <td>${index + 1}</td>
+                        <td><strong></strong></td>
+                        <td></td>
+                        <td></td>
+                        <td></td>
+                        <td style="color:#dc2626;"></td>
+                        <td><span class="${statusClass}"></span></td>
+                        <td></td>
+                        <td></td>
+                    `;
+                    tr.cells[1].querySelector('strong').textContent = String(item[stationKey] ?? '-');
+                    tr.cells[2].textContent = String(item['กฟฟ.'] ?? '-');
+                    tr.cells[3].textContent = String(item[brandKey] ?? '-');
+                    tr.cells[4].textContent = String(item[sizeKey] || '-');
+                    tr.cells[5].textContent = String(item[typeKey] || '-');
+                    tr.cells[6].querySelector('span').textContent = String(item[statusKey] ?? '-');
+                    tr.cells[7].textContent = String(item[remarkKey] || '-');
+                    tr.cells[8].textContent = String(item[pmKey] || '-');
+                    tableBody.appendChild(tr);
+                });
+            } else {
+                tableBody.innerHTML = `<tr><td colspan="9" style="text-align:center; color:#666;">ไม่พบข้อมูลสถานีใน กฟฟ. ที่เลือก</td></tr>`;
+            }
+        }
+
+        function populateOfficeFilter(data) {
+            const officeFilter = document.getElementById('officeFilter');
+            const offices = [...new Set(data.map(item =>
+                String(item['กฟฟ.'] ?? '').trim() || 'ไม่ระบุ กฟฟ.'
+            ))].sort((first, second) => first.localeCompare(second, 'th'));
+
+            offices.forEach(office => {
+                const option = document.createElement('option');
+                option.value = office;
+                option.textContent = office;
+                officeFilter.appendChild(option);
+            });
+
+            officeFilter.addEventListener('change', () => {
+                const selectedOffice = officeFilter.value;
+                const filteredData = selectedOffice === '__all__'
+                    ? allStationData
+                    : allStationData.filter(item =>
+                        (String(item['กฟฟ.'] ?? '').trim() || 'ไม่ระบุ กฟฟ.') === selectedOffice
+                    );
+                processDashboardData(filteredData);
+            });
+        }
+
+        function renderBarChart(labels, values) {
+            if (costChart) costChart.destroy();
+            costChart = new Chart(document.getElementById('costChart'), {
+                type: 'bar',
+                data: {
+                    labels,
+                    datasets: [{ label: 'มูลค่าสินทรัพย์ (บาท)', data: values, backgroundColor: '#2563eb' }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { title: { display: true, text: 'มูลค่าตู้ชาร์จแยกตามแบรนด์' } }
+                }
+            });
+        }
+
+        function renderPieChart(labels, values) {
+            if (statusChart) statusChart.destroy();
+            const fallbackColors = ['#2563eb', '#d97706', '#7c3aed', '#0891b2'];
+            const backgroundColors = labels.map((label, index) => {
+                const status = String(label).trim().toLowerCase();
+                if (['ใช้งาน', 'ใช้งานได้', 'ปกติ', 'active'].includes(status)) return '#059669';
+                if (['เสีย', 'ชำรุด', 'เสียหาย', 'broken'].includes(status)) return '#e11d48';
+                if (status.includes('ไม่ระบุ')) return '#64748b';
+                return fallbackColors[index % fallbackColors.length];
+            });
+
+            statusChart = new Chart(document.getElementById('repairTypeChart'), {
+                type: 'doughnut',
+                data: {
+                    labels,
+                    datasets: [{
+                        data: values,
+                        backgroundColor: backgroundColors,
+                        borderColor: '#ffffff',
+                        borderWidth: 3,
+                        hoverOffset: 8
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    cutout: '62%',
+                    plugins: {
+                        title: {
+                            display: true,
+                            text: 'สัดส่วนสถานะตู้ชาร์จ',
+                            font: { size: 16, weight: '600' },
+                            padding: { bottom: 18 }
+                        },
+                        legend: {
+                            position: 'bottom',
+                            labels: { usePointStyle: true, pointStyle: 'circle', padding: 18 }
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: context => {
+                                    const total = context.dataset.data.reduce((sum, value) => sum + value, 0);
+                                    const percentage = total ? (context.raw / total * 100).toFixed(1) : '0.0';
+                                    return ` ${context.label}: ${context.raw} ตู้ (${percentage}%)`;
+                                }
+                            }
+                        }
+                    }
+                },
+                plugins: [{
+                    id: 'statusCenterText',
+                    afterDraw(chart) {
+                        const total = chart.data.datasets[0].data.reduce((sum, value) => sum + value, 0);
+                        const area = chart.chartArea;
+                        if (!area) return;
+
+                        const centerX = (area.left + area.right) / 2;
+                        const centerY = (area.top + area.bottom) / 2;
+                        const context = chart.ctx;
+                        context.save();
+                        context.textAlign = 'center';
+                        context.textBaseline = 'middle';
+                        context.fillStyle = '#111827';
+                        context.font = '600 24px Segoe UI, sans-serif';
+                        context.fillText(total.toLocaleString(), centerX, centerY - 8);
+                        context.fillStyle = '#6b7280';
+                        context.font = '12px Segoe UI, sans-serif';
+                        context.fillText('สถานี', centerX, centerY + 15);
+                        context.restore();
+                    }
+                }]
+            });
+        }
+
+        loadDashboard();
+    </script>
+</body>
+</html>
+
