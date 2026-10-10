@@ -283,6 +283,7 @@
     <script>
         const apiUrl = 'https://script.google.com/macros/s/AKfycbz5lKYv5xjHxqlx89yKDjkuztBHQ6tv_zNd06Ji1vIknJCoLxr1Se3Lb9I19Iq0tXAh/exec';
         let allStationData = [];
+        let allRepairData = [];
         let costChart;
         let statusChart;
 
@@ -300,19 +301,22 @@
                 if (!response.ok) {
                     throw new Error(`API ตอบกลับสถานะ ${response.status}`);
                 }
-                const data = await response.json();
-                if (!Array.isArray(data)) {
+                const payload = await response.json();
+                const stationRows = Array.isArray(payload) ? payload : payload.stations;
+                const repairRows = Array.isArray(payload.repairs) ? payload.repairs : [];
+                if (!Array.isArray(stationRows)) {
                     throw new Error('รูปแบบข้อมูล API ไม่ถูกต้อง');
                 }
 
                 // คัดกรองกรณีกดบันทึกแถวเปล่าติดมาด้านท้ายตารางชีต
-                const cleanData = data.filter(item => item['Volta Name'] && String(item['Volta Name']).trim() !== '');
+                const cleanData = stationRows.filter(item => item['Volta Name'] && String(item['Volta Name']).trim() !== '');
 
                 if (cleanData.length > 0) {
                     allStationData = cleanData;
+                    allRepairData = repairRows;
                     populateOfficeFilter(cleanData);
                     document.getElementById('dashboardContent').style.display = 'block';
-                    processDashboardData(allStationData);
+                    processDashboardData(allStationData, allRepairData);
                     document.getElementById('loading').style.display = 'none';
                 } else {
                     document.getElementById('loading').innerText = 'ไม่พบข้อมูลในระบบฐานข้อมูล';
@@ -329,7 +333,7 @@
             }
         }
 
-        function processDashboardData(data) {
+        function processDashboardData(data, repairData = allRepairData) {
             // ตั้งค่าคีย์ให้ตรงตามข้อความแถวที่ 1 ของ Google Sheet 
             const stationKey = 'Volta Name';   
             const costKey = 'มูลค่าการได้มา';      
@@ -428,15 +432,15 @@
                 tableBody.innerHTML = `<tr><td colspan="11" style="text-align:center; color:#666;">ไม่พบข้อมูลสถานีใน กฟฟ. ที่เลือก</td></tr>`;
             }
 
-            renderRepairHistory(data, stationKey);
+            renderRepairHistory(repairData, data, stationKey);
         }
 
-        function renderRepairHistory(data, stationKey) {
+        function renderRepairHistory(repairData, stationData, stationKey) {
             const repairItemKey = 'รายการ';
             const repairPriceKey = 'ราคา';
             const historyBody = document.getElementById('repairHistoryBody');
-            const hasRepairFields = data.some(item => repairItemKey in item || repairPriceKey in item);
-            const repairRecords = data.filter(item =>
+            const hasRepairFields = repairData.some(item => repairItemKey in item || repairPriceKey in item);
+            const repairRecords = repairData.filter(item =>
                 String(item[repairItemKey] ?? '').trim() !== '' ||
                 String(item[repairPriceKey] ?? '').trim() !== ''
             );
@@ -450,7 +454,7 @@
             historyBody.replaceChildren();
 
             if (!hasRepairFields) {
-                historyBody.innerHTML = '<tr><td colspan="5" style="text-align:center; color:#666;">API ยังไม่ส่งคอลัมน์ รายการ และ ราคา</td></tr>';
+                historyBody.innerHTML = '<tr><td colspan="5" style="text-align:center; color:#666;">API ยังไม่ได้ส่งข้อมูลจากแท็บ ประวัติการซ่อมแซม</td></tr>';
                 return;
             }
             if (repairRecords.length === 0) {
@@ -460,10 +464,14 @@
 
             repairRecords.forEach((item, index) => {
                 const row = document.createElement('tr');
+                const stationName = getRepairStationName(item, stationKey);
+                const station = stationData.find(entry =>
+                    String(entry[stationKey] ?? '').trim() === stationName
+                );
                 [
                     index + 1,
-                    item[stationKey] || '-',
-                    item['กฟฟ.'] || '-',
+                    stationName || '-',
+                    item['กฟฟ.'] || station?.['กฟฟ.'] || '-',
                     item[repairItemKey] || '-',
                     `${parseMoney(item[repairPriceKey]).toLocaleString('th-TH')} บาท`
                 ].forEach(value => {
@@ -473,6 +481,12 @@
                 });
                 historyBody.appendChild(row);
             });
+        }
+
+        function getRepairStationName(item, defaultKey) {
+            return String(
+                item[defaultKey] || item['ชื่อสถานีชาร์จ'] || item['ชื่อสถานี'] || item['Station'] || ''
+            ).trim();
         }
 
         function parseMoney(value) {
@@ -510,7 +524,15 @@
                     : allStationData.filter(item =>
                         (String(item['กฟฟ.'] ?? '').trim() || 'ไม่ระบุ กฟฟ.') === selectedOffice
                     );
-                processDashboardData(filteredData);
+                const stationNames = new Set(filteredData.map(item => String(item['Volta Name'] ?? '').trim()));
+                const filteredRepairs = selectedOffice === '__all__'
+                    ? allRepairData
+                    : allRepairData.filter(item => {
+                        const office = String(item['กฟฟ.'] ?? '').trim();
+                        const stationName = getRepairStationName(item, 'Volta Name');
+                        return office === selectedOffice || (!office && stationNames.has(stationName));
+                    });
+                processDashboardData(filteredData, filteredRepairs);
             });
         }
 
