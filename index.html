@@ -281,7 +281,8 @@
     </div>
 
     <script>
-        const apiUrl = 'https://script.google.com/macros/s/AKfycbyBFsZqyna4TYyJJQUFv7-RO3nN4BII91tvkvY6ivtUzjwgatU7p_kWQZNGRuzf6cFA/exec';
+        const stationApiUrl = 'https://script.google.com/macros/s/AKfycbz5lKYv5xjHxqlx89yKDjkuztBHQ6tv_zNd06Ji1vIknJCoLxr1Se3Lb9I19Iq0tXAh/exec';
+        const repairApiUrl = 'https://script.google.com/macros/s/AKfycbyBFsZqyna4TYyJJQUFv7-RO3nN4BII91tvkvY6ivtUzjwgatU7p_kWQZNGRuzf6cFA/exec';
         let allStationData = [];
         let allRepairData = [];
         let costChart;
@@ -289,23 +290,38 @@
 
         async function loadDashboard() {
             const loading = document.getElementById('loading');
-            if (!apiUrl || apiUrl.includes('YOUR_')) {
-                loading.innerText = 'กรุณาตั้งค่า URL ของ Google Apps Script API ในตัวแปร apiUrl';
+            if (!stationApiUrl || !repairApiUrl) {
+                loading.innerText = 'กรุณาตั้งค่า URL ของ Apps Script API';
                 return;
             }
 
             const controller = new AbortController();
             const timeoutId = setTimeout(() => controller.abort(), 12000);
             try {
-                const response = await fetch(apiUrl, { signal: controller.signal });
-                if (!response.ok) {
-                    throw new Error(`API ตอบกลับสถานะ ${response.status}`);
+                const [stationResponse, repairResponse] = await Promise.all([
+                    fetch(stationApiUrl, { signal: controller.signal }),
+                    fetch(repairApiUrl, { signal: controller.signal }).catch(error => {
+                        console.warn('Could not load repair history:', error);
+                        return null;
+                    })
+                ]);
+                if (!stationResponse.ok) {
+                    throw new Error(`Station API ตอบกลับสถานะ ${stationResponse.status}`);
                 }
-                const payload = await response.json();
-                const stationRows = Array.isArray(payload) ? payload : payload.stations;
-                const repairRows = Array.isArray(payload.repairs) ? payload.repairs : [];
+                const stationRows = await stationResponse.json();
+                let repairRows = [];
+                if (repairResponse?.ok) {
+                    const repairPayload = await repairResponse.json();
+                    repairRows = Array.isArray(repairPayload)
+                        ? repairPayload
+                        : Array.isArray(repairPayload.repairs)
+                            ? repairPayload.repairs
+                            : [];
+                } else {
+                    console.warn('Repair history API is unavailable; retaining station dashboard data.');
+                }
                 if (!Array.isArray(stationRows)) {
-                    throw new Error('รูปแบบข้อมูล API ไม่ถูกต้อง');
+                    throw new Error('รูปแบบข้อมูล Station API ไม่ถูกต้อง');
                 }
 
                 // คัดกรองกรณีกดบันทึกแถวเปล่าติดมาด้านท้ายตารางชีต
