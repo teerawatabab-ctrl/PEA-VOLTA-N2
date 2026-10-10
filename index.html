@@ -269,12 +269,13 @@
                             <th>ลำดับ</th>
                             <th>ชื่อสถานีชาร์จ</th>
                             <th>กฟฟ.</th>
+                            <th>วันที่ดำเนินการ</th>
                             <th>รายการ</th>
                             <th>ราคา</th>
                         </tr>
                     </thead>
                     <tbody id="repairHistoryBody">
-                        <tr><td colspan="5" style="text-align:center; color:#666;">กำลังโหลดประวัติการซ่อม</td></tr>
+                        <tr><td colspan="6" style="text-align:center; color:#666;">กำลังโหลดประวัติการซ่อม</td></tr>
                     </tbody>
                 </table>
             </div>
@@ -478,24 +479,31 @@
             historyBody.replaceChildren();
 
             if (!hasRepairFields) {
-                historyBody.innerHTML = '<tr><td colspan="5" style="text-align:center; color:#666;">API ยังไม่ได้ส่งข้อมูลจากแท็บ ประวัติการซ่อมแซม</td></tr>';
+                historyBody.innerHTML = '<tr><td colspan="6" style="text-align:center; color:#666;">API ยังไม่ได้ส่งข้อมูลจากแท็บ ประวัติการซ่อมแซม</td></tr>';
                 return;
             }
             if (repairRecords.length === 0) {
-                historyBody.innerHTML = '<tr><td colspan="5" style="text-align:center; color:#666;">ไม่พบรายการซ่อมใน กฟฟ. ที่เลือก</td></tr>';
+                historyBody.innerHTML = '<tr><td colspan="6" style="text-align:center; color:#666;">ไม่พบรายการซ่อมใน กฟฟ. ที่เลือก</td></tr>';
                 return;
             }
 
+            const stationSequence = new Map();
+            let nextSequence = 1;
             repairRecords.forEach((item, index) => {
                 const row = document.createElement('tr');
                 const stationName = getRepairStationName(item, stationKey);
+                const sequenceKey = stationName || `__repair_${index}`;
+                if (!stationSequence.has(sequenceKey)) {
+                    stationSequence.set(sequenceKey, nextSequence++);
+                }
                 const station = stationData.find(entry =>
                     String(entry[stationKey] ?? '').trim() === stationName
                 );
                 [
-                    index + 1,
+                    stationSequence.get(sequenceKey),
                     stationName || '-',
                     item['กฟฟ.'] || station?.['กฟฟ.'] || '-',
+                    item['วันที่ดำเนินการ'] || '-',
                     item[repairItemKey] || '-',
                     `${parseMoney(item[repairPriceKey]).toLocaleString('th-TH')} บาท`
                 ].forEach(value => {
