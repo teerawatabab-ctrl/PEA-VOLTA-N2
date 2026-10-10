@@ -251,9 +251,9 @@
                 <canvas id="costChart"></canvas>
             </div>
             
-            <!-- กราฟวงกลมสรุปสถานะการใช้งานตู้ชาร์จ -->
+            <!-- กราฟแท่งแสดงจำนวนรายการซ่อมแซม -->
             <div class="chart-box">
-                <canvas id="repairTypeChart"></canvas>
+                <canvas id="repairCountChart"></canvas>
             </div>
 
             <!-- ตารางสถานะและแผน PM ของตู้ชาร์จ -->
@@ -308,7 +308,7 @@
         let allStationData = [];
         let allRepairData = [];
         let costChart;
-        let statusChart;
+        let repairChart;
 
         async function loadDashboard() {
             const loading = document.getElementById('loading');
@@ -417,14 +417,16 @@
             
             renderBarChart(Object.keys(brandCosts), Object.values(brandCosts));
 
-            // --- 3. ข้อมูลกราฟวงกลม: สัดส่วนสถานะตู้ (ใช้งานได้ปกติ vs เสีย) ---
-            const statusCounts = {};
-            data.forEach(item => {
-                const status = item[statusKey] || 'ไม่ระบุสถานะ';
-                statusCounts[status] = (statusCounts[status] || 0) + 1;
+            // --- 3. จำนวนครั้งของแต่ละรายการซ่อม ---
+            const repairItemCounts = {};
+            repairData.forEach(item => {
+                const repairItem = String(item['รายการ'] ?? '').trim();
+                if (repairItem) {
+                    repairItemCounts[repairItem] = (repairItemCounts[repairItem] || 0) + 1;
+                }
             });
 
-            renderPieChart(Object.keys(statusCounts), Object.values(statusCounts));
+            renderRepairCountChart(Object.keys(repairItemCounts), Object.values(repairItemCounts));
 
             // --- 4. แสดงสถานะและแผน PM ของทุกสถานี ---
             const tableBody = document.getElementById('repairTableBody');
@@ -621,77 +623,44 @@
             });
         }
 
-        function renderPieChart(labels, values) {
-            if (statusChart) statusChart.destroy();
-            const fallbackColors = ['#2563eb', '#d97706', '#7c3aed', '#0891b2'];
-            const backgroundColors = labels.map((label, index) => {
-                const status = String(label).trim().toLowerCase();
-                if (['ใช้งาน', 'ใช้งานได้', 'ปกติ', 'active'].includes(status)) return '#059669';
-                if (['เสีย', 'ชำรุด', 'เสียหาย', 'broken'].includes(status)) return '#e11d48';
-                if (status.includes('ไม่ระบุ')) return '#64748b';
-                return fallbackColors[index % fallbackColors.length];
-            });
-
-            statusChart = new Chart(document.getElementById('repairTypeChart'), {
-                type: 'doughnut',
+        function renderRepairCountChart(labels, values) {
+            if (repairChart) repairChart.destroy();
+            repairChart = new Chart(document.getElementById('repairCountChart'), {
+                type: 'bar',
                 data: {
                     labels,
                     datasets: [{
                         data: values,
-                        backgroundColor: backgroundColors,
-                        borderColor: '#ffffff',
-                        borderWidth: 3,
-                        hoverOffset: 8
+                        label: 'จำนวนรายการซ่อม',
+                        backgroundColor: '#713a91',
+                        borderRadius: 5,
+                        maxBarThickness: 30
                     }]
                 },
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
-                    cutout: '62%',
+                    indexAxis: 'y',
                     plugins: {
                         title: {
                             display: true,
-                            text: 'สัดส่วนสถานะตู้ชาร์จ',
+                            text: 'จำนวนรายการซ่อมแซม',
                             font: { size: 16, weight: '600' },
                             padding: { bottom: 18 }
                         },
-                        legend: {
-                            position: 'bottom',
-                            labels: { usePointStyle: true, pointStyle: 'circle', padding: 18 }
-                        },
+                        legend: { display: false },
                         tooltip: {
                             callbacks: {
-                                label: context => {
-                                    const total = context.dataset.data.reduce((sum, value) => sum + value, 0);
-                                    const percentage = total ? (context.raw / total * 100).toFixed(1) : '0.0';
-                                    return ` ${context.label}: ${context.raw} ตู้ (${percentage}%)`;
-                                }
+                                label: context => ` ${context.raw} รายการ`
                             }
                         }
                     }
-                },
-                plugins: [{
-                    id: 'statusCenterText',
-                    afterDraw(chart) {
-                        const total = chart.data.datasets[0].data.reduce((sum, value) => sum + value, 0);
-                        const area = chart.chartArea;
-                        if (!area) return;
-
-                        const centerX = (area.left + area.right) / 2;
-                        const centerY = (area.top + area.bottom) / 2;
-                        const context = chart.ctx;
-                        context.save();
-                        context.textAlign = 'center';
-                        context.textBaseline = 'middle';
-                        context.fillStyle = '#111827';
-                        context.font = '600 24px Segoe UI, sans-serif';
-                        context.fillText(total.toLocaleString(), centerX, centerY - 8);
-                        context.fillStyle = '#6b7280';
-                        context.font = '12px Segoe UI, sans-serif';
-                        context.fillText('สถานี', centerX, centerY + 15);
-                        context.restore();
+                    ,
+                    scales: {
+                        x: { beginAtZero: true, ticks: { precision: 0, stepSize: 1 } },
+                        y: { ticks: { autoSkip: false } }
                     }
-                }]
+                }
             });
         }
 
