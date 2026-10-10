@@ -227,8 +227,8 @@
         <!-- ส่วนที่ 1: การ์ดสรุปภาพรวม (KPI) -->
         <div class="kpi-container">
             <div class="kpi-card">
-                <h3>จำนวนสถานีตามพิกัด</h3>
-                <div id="totalStations" class="value">0 สถานี</div>
+                <h3>จำนวนตู้ชาร์จ</h3>
+                <div id="totalStations" class="value">0 ตู้</div>
             </div>
             <div class="kpi-card cost">
                 <h3>มูลค่าสินทรัพย์รวมทั้งหมด</h3>
@@ -393,7 +393,7 @@
                     uniqueLocations.add(`${latitude.toFixed(6)},${longitude.toFixed(6)}`);
                 }
             });
-            document.getElementById('totalStations').innerText = `${uniqueLocations.size.toLocaleString()} สถานี`;
+            document.getElementById('totalStations').innerText = `${uniqueLocations.size.toLocaleString()} ตู้`;
 
             // สกัดค่าตัวเลขและคำนวณมูลค่าสินทรัพย์รวม (ป้องกันกรณีค่าเป็น 'na' หรือข้อความอื่น)
             const totalCost = data.reduce((sum, item) => {
