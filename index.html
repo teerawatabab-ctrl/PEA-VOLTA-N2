@@ -53,6 +53,7 @@
         .kpi-card.cost { border-left-color: #10b981; }
         .kpi-card.repair { border-left-color: #ef4444; }
         .kpi-card.maintenance { border-left-color: #d97706; }
+        .kpi-card.station { border-left-color: #713a91; }
         
         .kpi-card h3 {
             margin: 0 0 10px 0;
@@ -230,6 +231,10 @@
                 <h3>จำนวนตู้ชาร์จ</h3>
                 <div id="totalStations" class="value">0 ตู้</div>
             </div>
+            <div class="kpi-card station">
+                <h3>จำนวนสถานี</h3>
+                <div id="totalStationLocations" class="value">0 สถานี</div>
+            </div>
             <div class="kpi-card cost">
                 <h3>มูลค่าสินทรัพย์รวมทั้งหมด</h3>
                 <div id="totalCost" class="value">0 บาท</div>
@@ -385,15 +390,9 @@
             const longitudeKey = 'ลองติจูด';
 
             // --- 1. คำนวณค่าสำหรับการ์ด KPI ---
-            const uniqueLocations = new Set();
-            data.forEach(item => {
-                const latitude = parseCoordinate(item[latitudeKey], -90, 90);
-                const longitude = parseCoordinate(item[longitudeKey], -180, 180);
-                if (latitude !== null && longitude !== null) {
-                    uniqueLocations.add(`${latitude.toFixed(6)},${longitude.toFixed(6)}`);
-                }
-            });
-            document.getElementById('totalStations').innerText = `${uniqueLocations.size.toLocaleString()} ตู้`;
+            document.getElementById('totalStations').innerText = `${data.length.toLocaleString()} ตู้`;
+            const stationCount = countStationsByCoordinates(data, latitudeKey, longitudeKey, 20);
+            document.getElementById('totalStationLocations').innerText = `${stationCount.toLocaleString()} สถานี`;
 
             // สกัดค่าตัวเลขและคำนวณมูลค่าสินทรัพย์รวม (ป้องกันกรณีค่าเป็น 'na' หรือข้อความอื่น)
             const totalCost = data.reduce((sum, item) => {
@@ -573,6 +572,34 @@
             return Number.isFinite(coordinate) && coordinate >= minimum && coordinate <= maximum
                 ? coordinate
                 : null;
+        }
+
+        function countStationsByCoordinates(data, latitudeKey, longitudeKey, radiusMeters) {
+            const stationLocations = [];
+            data.forEach(item => {
+                const latitude = parseCoordinate(item[latitudeKey], -90, 90);
+                const longitude = parseCoordinate(item[longitudeKey], -180, 180);
+                if (latitude === null || longitude === null) return;
+
+                const nearbyStation = stationLocations.some(location => {
+                    const radians = Math.PI / 180;
+                    const latitudeDelta = (latitude - location.latitude) * radians;
+                    const longitudeDelta = (longitude - location.longitude) * radians;
+                    const startLatitude = location.latitude * radians;
+                    const endLatitude = latitude * radians;
+                    const haversine = Math.sin(latitudeDelta / 2) ** 2 +
+                        Math.cos(startLatitude) * Math.cos(endLatitude) *
+                        Math.sin(longitudeDelta / 2) ** 2;
+                    const distance = 6371000 * 2 * Math.atan2(
+                        Math.sqrt(haversine),
+                        Math.sqrt(1 - haversine)
+                    );
+                    return distance <= radiusMeters;
+                });
+
+                if (!nearbyStation) stationLocations.push({ latitude, longitude });
+            });
+            return stationLocations.length;
         }
 
         function populateOfficeFilter(data) {
