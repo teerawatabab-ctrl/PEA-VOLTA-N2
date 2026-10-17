@@ -402,7 +402,7 @@
             document.getElementById('totalCost').innerText = totalCost.toLocaleString() + " บาท";
 
             // กรองจำนวนตู้ที่ขึ้นสเตตัสว่า "เสีย"
-            const brokenStations = data.filter(item => String(item[statusKey]).trim() === 'เสีย');
+            const brokenStations = data.filter(item => isBrokenStatus(item[statusKey]));
             document.getElementById('totalRepairs').innerText = brokenStations.length + " ตู้";
 
             // --- 2. ข้อมูลกราฟแท่ง: สรุปมูลค่าตู้แยกตามแบรนด์ (ABB / KMITL / ZEROVA) ---
@@ -434,7 +434,7 @@
             if (data.length > 0) {
                 data.forEach((item, index) => {
                     const tr = document.createElement('tr');
-                    const statusClass = String(item[statusKey]).trim() === 'เสีย' ? 'badge broken' : 'badge active';
+                    const statusClass = isBrokenStatus(item[statusKey]) ? 'badge broken' : 'badge active';
                     tr.innerHTML = `
                         <td>${index + 1}</td>
                         <td><strong></strong></td>
@@ -544,6 +544,10 @@
             return String(
                 item[defaultKey] || item['ชื่อสถานีชาร์จ'] || item['ชื่อสถานี'] || item['Station'] || ''
             ).trim();
+        }
+
+        function isBrokenStatus(value) {
+            return String(value ?? '').trim().startsWith('เสีย');
         }
 
         function fillRepairStationNames(repairRows) {
