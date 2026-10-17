@@ -391,7 +391,7 @@
 
             // --- 1. คำนวณค่าสำหรับการ์ด KPI ---
             document.getElementById('totalStations').innerText = `${data.length.toLocaleString()} ตู้`;
-            const stationCount = countStationsByCoordinates(data, latitudeKey, longitudeKey, 20);
+            const stationCount = countStationsByCoordinates(data, latitudeKey, longitudeKey, 30);
             document.getElementById('totalStationLocations').innerText = `${stationCount.toLocaleString()} สถานี`;
 
             // สกัดค่าตัวเลขและคำนวณมูลค่าสินทรัพย์รวม (ป้องกันกรณีค่าเป็น 'na' หรือข้อความอื่น)
