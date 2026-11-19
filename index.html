@@ -230,6 +230,10 @@
             <select id="officeFilter">
                 <option value="__all__">ทุก กฟฟ.</option>
             </select>
+            <label for="stationFilter">เลือก VOLTA NAME</label>
+            <select id="stationFilter">
+                <option value="__all__">ทุกสถานี</option>
+            </select>
         </div>
 
         <!-- ส่วนที่ 1: การ์ดสรุปภาพรวม (KPI) -->
@@ -380,9 +384,9 @@
                     allStationData = cleanData;
                     allRepairData = fillRepairStationNames(repairRows);
                     allRevenueData = revenueRows;
-                    populateOfficeFilter(cleanData);
+                    populateFilters(cleanData);
                     document.getElementById('dashboardContent').style.display = 'block';
-                    processDashboardData(allStationData, allRepairData, allRevenueData);
+                    applyDashboardFilters();
                     document.getElementById('loading').style.display = 'none';
                 } else {
                     document.getElementById('loading').innerText = 'ไม่พบข้อมูลในระบบฐานข้อมูล';
@@ -630,11 +634,15 @@
             return stationLocations.length;
         }
 
-        function populateOfficeFilter(data) {
+        function populateFilters(data) {
             const officeFilter = document.getElementById('officeFilter');
+            const stationFilter = document.getElementById('stationFilter');
             const offices = [...new Set(data.map(item =>
                 String(item['กฟฟ.'] ?? '').trim() || 'ไม่ระบุ กฟฟ.'
             ))].sort((first, second) => first.localeCompare(second, 'th'));
+            const stations = [...new Set(data.map(item =>
+                String(item['Volta Name'] ?? '').trim()
+            ).filter(Boolean))].sort((first, second) => first.localeCompare(second, 'th'));
 
             offices.forEach(office => {
                 const option = document.createElement('option');
@@ -642,29 +650,45 @@
                 option.textContent = office;
                 officeFilter.appendChild(option);
             });
-
-            officeFilter.addEventListener('change', () => {
-                const selectedOffice = officeFilter.value;
-                const filteredData = selectedOffice === '__all__'
-                    ? allStationData
-                    : allStationData.filter(item =>
-                        (String(item['กฟฟ.'] ?? '').trim() || 'ไม่ระบุ กฟฟ.') === selectedOffice
-                    );
-                const stationNames = new Set(filteredData.map(item => String(item['Volta Name'] ?? '').trim()));
-                const filteredRepairs = selectedOffice === '__all__'
-                    ? allRepairData
-                    : allRepairData.filter(item => {
-                        const office = String(item['กฟฟ.'] ?? '').trim();
-                        const stationName = getRepairStationName(item, 'Volta Name');
-                        return office === selectedOffice || (!office && stationNames.has(stationName));
-                    });
-                const filteredRevenues = selectedOffice === '__all__'
-                    ? allRevenueData
-                    : allRevenueData.filter(item =>
-                        stationNames.has(String(item['Volta Name'] ?? '').trim())
-                    );
-                processDashboardData(filteredData, filteredRepairs, filteredRevenues);
+            stations.forEach(station => {
+                const option = document.createElement('option');
+                option.value = station;
+                option.textContent = station;
+                stationFilter.appendChild(option);
             });
+
+            officeFilter.addEventListener('change', applyDashboardFilters);
+            stationFilter.addEventListener('change', applyDashboardFilters);
+        }
+
+        function applyDashboardFilters() {
+            const selectedOffice = document.getElementById('officeFilter').value;
+            const selectedStation = document.getElementById('stationFilter').value;
+            const filteredData = allStationData.filter(item => {
+                const office = String(item['กฟฟ.'] ?? '').trim() || 'ไม่ระบุ กฟฟ.';
+                const stationName = String(item['Volta Name'] ?? '').trim();
+                return (selectedOffice === '__all__' || office === selectedOffice) &&
+                    (selectedStation === '__all__' || stationName === selectedStation);
+            });
+            const stationNames = new Set(filteredData.map(item =>
+                String(item['Volta Name'] ?? '').trim()
+            ));
+            const filteredRepairs = allRepairData.filter(item => {
+                const office = String(item['กฟฟ.'] ?? '').trim();
+                const stationName = getRepairStationName(item, 'Volta Name');
+                const matchesOffice = selectedOffice === '__all__' ||
+                    office === selectedOffice ||
+                    (!office && stationNames.has(stationName));
+                const matchesStation = selectedStation === '__all__' ||
+                    stationName === selectedStation;
+                return matchesOffice && matchesStation;
+            });
+            const filteredRevenues = selectedOffice === '__all__' && selectedStation === '__all__'
+                ? allRevenueData
+                : allRevenueData.filter(item =>
+                    stationNames.has(String(item['Volta Name'] ?? '').trim())
+                );
+            processDashboardData(filteredData, filteredRepairs, filteredRevenues);
         }
 
         function renderBarChart(labels, values) {
