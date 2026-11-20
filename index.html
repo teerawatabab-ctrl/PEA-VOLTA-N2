@@ -273,7 +273,7 @@
             </div>
 
             <div class="chart-box comparison-chart-box">
-                <h3>เปรียบเทียบรายได้และค่าใช้จ่ายซ่อมแซมตามสถานี PEA VOLTA</h3>
+                <h3>เปรียบเทียบรายได้และค่าใช้จ่ายซ่อมแซมตามสถานี PEA VOLTA (รายได้สะสม 10 เดือน ม.ค.-ต.ค. 2569)</h3>
                 <p id="revenueRepairMessage" class="comparison-chart-message" role="status" style="display:none;"></p>
                 <canvas id="revenueRepairChart" role="img" aria-label="กราฟเปรียบเทียบรายได้กับค่าซ่อมแยกตามสถานี"></canvas>
             </div>
@@ -766,7 +766,7 @@
                 item && Object.prototype.hasOwnProperty.call(item, revenueKey)
             );
             if (!hasRevenueFields) {
-                showMessage('API ยังไม่ส่งข้อมูลจากชีต “รายได้ 08_2026” หรือไม่มีคอลัมน์ “รายได้”');
+                showMessage('API ยังไม่ส่งข้อมูลรายได้สะสม 10 เดือน (ม.ค.-ต.ค. 2569) หรือไม่มีคอลัมน์ “รายได้”');
                 return;
             }
 
@@ -807,7 +807,7 @@
                     labels,
                     datasets: [
                         {
-                            label: 'รายได้ (บาท)',
+                            label: 'รายได้สะสม 10 เดือน (ม.ค.-ต.ค. 2569) (บาท)',
                             data: labels.map(label => incomeByStation.get(label) || 0),
                             backgroundColor: '#16806d',
                             borderRadius: 4
@@ -827,7 +827,7 @@
                     plugins: {
                         title: {
                             display: true,
-                            text: 'รายได้เทียบกับค่าใช้จ่ายซ่อมแซม แยกตามสถานี PEA VOLTA',
+                            text: 'เปรียบเทียบรายได้และค่าใช้จ่ายซ่อมแซมตามสถานี PEA VOLTA (รายได้สะสม 10 เดือน ม.ค.-ต.ค. 2569)',
                             font: { size: 16, weight: '600' },
                             padding: { bottom: 18 }
                         },
